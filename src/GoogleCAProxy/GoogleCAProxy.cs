@@ -11,6 +11,7 @@ using CAProxy.AnyGateway.Models;
 using CAProxy.Common;
 using CSS.PKI;
 using Google.Api.Gax;
+using Google.Api.Gax.Grpc;
 using Google.Cloud.Security.PrivateCA.V1;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
@@ -644,12 +645,19 @@ namespace Keyfactor.AnyGateway.Google
         /// <returns></returns>
         private static CertificateAuthorityServiceClient BuildClient()
         {
-            CertificateAuthorityServiceClientBuilder caClient = new CertificateAuthorityServiceClientBuilder
+            string credentialsPath = Environment.GetEnvironmentVariable(AuthEnvVariableName, EnvironmentVariableTarget.Machine);
+
+            // Set the gRPC buffer size to -1 for "no limit"
+            // https://grpc.github.io/grpc/core/group__grpc__arg__keys.html#ga813f94f9ac3174571dd712c96cdbbdc1
+            GrpcChannelOptions grpcChannelOptions = GrpcChannelOptions.Empty.WithMaxReceiveMessageSize(-1);
+
+            CertificateAuthorityServiceClientBuilder caClientBuilder = new CertificateAuthorityServiceClientBuilder
             {
-                CredentialsPath =
-                    Environment.GetEnvironmentVariable(AuthEnvVariableName, EnvironmentVariableTarget.Machine)
+                CredentialsPath = credentialsPath,
+                GrpcChannelOptions = grpcChannelOptions,
             };
-            return caClient.Build();
+
+            return caClientBuilder.Build();        
         }
 
         #endregion
