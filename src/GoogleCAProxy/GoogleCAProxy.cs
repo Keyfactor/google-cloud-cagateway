@@ -132,7 +132,8 @@ namespace Keyfactor.AnyGateway.Google
                 Certificate = certificate,
                 //RequestId="",//if used, this needs to be durable between reties 
                 CertificateId =
-                    $"{now:yyyy}{now:MM}{now:dd}-{now:HH}{now:mm}{now:ss}" //ID is required for Enterprise tier CAs and ignored for other.  
+                    $"{now:yyyy}{now:MM}{now:dd}-{now:HH}{now:mm}{now:ss}{now:fff}-{Guid.NewGuid()}"; //ID is required for Enterprise tier CAs and ignored for other. It needs to be unique.
+
             };
 
             if (!string.IsNullOrEmpty(CaId))
