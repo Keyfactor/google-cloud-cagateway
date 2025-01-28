@@ -1,4 +1,7 @@
-﻿# v2.0.0
+﻿# v2.0.1
+* Set `grpc.max_receive_message_length` to -1 on `CertificateAuthorityServiceClientBuilder`
+
+# v2.0.0
 * Migrate `packages.config` to `PackageReference` format
 * Upgrade packages to support Keyfactor AnyCA Gateway DCOM v24.2
     * Upgrade `Keyfactor.AnyGateway.SDK` to `24.2.0-PRERELEASE-47446`
