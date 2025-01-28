@@ -101,13 +101,47 @@ namespace Keyfactor.AnyGateway.Google
                     $"LifetimeKey not found in Product Parameters for Product Id {productInfo.ProductID}. Using default value of 365 days.");
             }
 
-            Log.LogDebug($"Configuring {typeof(Certificate)} for {subject} with {lifetimeInDays} days validity");
+			CertificateConfig certConfig = new CertificateConfig();
+			certConfig.SubjectConfig = new CertificateConfig.Types.SubjectConfig();
+			bool useConfig = false;
+			if (!string.IsNullOrEmpty(subject))
+			{
+				certConfig.SubjectConfig.Subject = new Subject
+				{
+					CommonName = ParseSubject(subject, "CN=", false),
+					Organization = ParseSubject(subject, "O=", false),
+					OrganizationalUnit = ParseSubject(subject, "OU=", false),
+					CountryCode = ParseSubject(subject, "C=", false),
+					Locality = ParseSubject(subject, "L=", false)
+				};
+				useConfig = true;
+			}
+			var dnsSans = new List<string>();
+			if (san != null & san.Count > 0)
+			{
+				var dnsKeys = san.Keys.Where(k => k.IndexOf("dns", StringComparison.OrdinalIgnoreCase) >= 0);
+				foreach (var key in dnsKeys)
+				{
+					dnsSans.AddRange(san[key]);
+				}
+			}
+			if (dnsSans.Count > 0)
+			{
+				certConfig.SubjectConfig.SubjectAltName = new SubjectAltNames
+				{
+					DnsNames = { dnsSans }
+				};
+				useConfig = true;
+			}
+
+			Log.LogDebug($"Configuring {typeof(Certificate)} for {subject} with {lifetimeInDays} days validity");
             Certificate certificate = new Certificate
             {
                 PemCsr =
                     $"-----BEGIN NEW CERTIFICATE REQUEST-----\n{pemify(csr)}\n-----END NEW CERTIFICATE REQUEST-----",
                 Lifetime = Duration.FromTimeSpan(new TimeSpan(lifetimeInDays, 0, 0, 0,
-                    0)) //365 day default or defined by config
+                    0)), //365 day default or defined by config
+				Config = (useConfig) ? certConfig : null
             };
 
             if (productInfo.ProductID == NoTemplateProductId)
@@ -660,11 +694,30 @@ namespace Keyfactor.AnyGateway.Google
             return caClientBuilder.Build();        
         }
 
-        #endregion
+		private static string ParseSubject(string subject, string rdn, bool required = true)
+		{
+			string escapedSubject = subject.Replace("\\,", "|");
+			string rdnString = escapedSubject.Split(',').ToList().Where(x => x.Contains(rdn)).FirstOrDefault();
 
-        #region Obsolete Methods
+			if (!string.IsNullOrEmpty(rdnString))
+			{
+				return rdnString.Replace(rdn, "").Replace("|", ",").Trim();
+			}
+			else if (required)
+			{
+				throw new Exception($"The request is missing a {rdn} value");
+			}
+			else
+			{
+				return null;
+			}
+		}
 
-        [Obsolete]
+		#endregion
+
+		#region Obsolete Methods
+
+		[Obsolete]
         public override EnrollmentResult Enroll(string csr, string subject, Dictionary<string, string[]> san,
             EnrollmentProductInfo productInfo, PKIConstants.X509.RequestFormat requestFormat,
             RequestUtilities.EnrollmentType enrollmentType)
