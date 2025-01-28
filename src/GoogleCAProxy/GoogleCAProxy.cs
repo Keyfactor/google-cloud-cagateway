@@ -166,8 +166,7 @@ namespace Keyfactor.AnyGateway.Google
                 ParentAsCaPoolName = caPoolAsTypedName,
                 Certificate = certificate,
                 //RequestId="",//if used, this needs to be durable between reties 
-                CertificateId =
-                    $"{now:yyyy}{now:MM}{now:dd}-{now:HH}{now:mm}{now:ss}" //ID is required for Enterprise tier CAs and ignored for other.  
+                CertificateId = Guid.NewGuid().ToString() //ID is required for Enterprise tier CAs and ignored for other.  
             };
 
             if (!string.IsNullOrEmpty(CaId))
