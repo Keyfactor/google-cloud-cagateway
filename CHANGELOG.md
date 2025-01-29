@@ -1,4 +1,8 @@
-﻿# v2.0.1
+# v2.1.0
+* Support external SANs/subject (not in CSR)
+* Change Certificate ID on enrollment to use a GUID for uniqueness
+ 
+ # v2.0.1
 * Set `grpc.max_receive_message_length` to -1 on `CertificateAuthorityServiceClientBuilder`
 
 # v2.0.0
