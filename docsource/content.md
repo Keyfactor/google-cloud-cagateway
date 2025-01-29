@@ -7,6 +7,7 @@ The [Google Cloud Platform (GCP) CA Services (CAS)](https://cloud.google.com/sec
     * Download all certificates issued by connected Enterprise tier CAs in GCP CAS issued after a specified time (incremental sync).
 * Certificate enrollment for all published GoDaddy Certificate SKUs:
     * Support certificate enrollment (new keys/certificate).
+    * Support auto-enrollment (subject/SANs supplied outside of CSR)
 * Certificate revocation:
     * Request revocation of a previously issued certificate.
 
