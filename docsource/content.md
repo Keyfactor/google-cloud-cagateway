@@ -1,4 +1,4 @@
-## Overview
+﻿## Overview
 
 The [Google Cloud Platform (GCP) CA Services (CAS)](https://cloud.google.com/security/products/certificate-authority-service) AnyCA Gateway DCOM plugin extends the capabilities of connected GCP CAS CAs to [Keyfactor Command](https://www.keyfactor.com/products/command/) via the Keyfactor AnyCA Gateway DCOM. The plugin represents a fully featured AnyCA DCOM Plugin with the following capabilies:
 
@@ -7,11 +7,12 @@ The [Google Cloud Platform (GCP) CA Services (CAS)](https://cloud.google.com/sec
     * Download all certificates issued by connected Enterprise tier CAs in GCP CAS issued after a specified time (incremental sync).
 * Certificate enrollment for all published GoDaddy Certificate SKUs:
     * Support certificate enrollment (new keys/certificate).
+    * Support auto-enrollment (subject/SANs supplied outside of CSR)
 * Certificate revocation:
     * Request revocation of a previously issued certificate.
 
 > The GCP CAS AnyCA Gateway DCOM plugin is **not** supported for [DevOps Tier](https://cloud.google.com/certificate-authority-service/docs/tiers) Certificate Authority Pools.
-> 
+>
 > DevOps tier CA Pools don't offer listing, describing, or revoking certificates.
 
 ## Compatibility
@@ -32,7 +33,7 @@ Please refer to [Google's documentation](https://cloud.google.com/docs/authentic
 >
 > 1. The service account that the AnyCA Gateway REST runs under must have read permission to the GCP credential JSON file.
 > 2. You must set the `GOOGLE_APPLICATION_CREDENTIALS` environment variable for the Windows Service running the AnyCA Gateway REST using the [Windows registry editor](https://learn.microsoft.com/en-us/troubleshoot/windows-server/performance/windows-registry-advanced-users).
->     * Refer to the [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment](https://learn.microsoft.com/en-us/windows/win32/procthread/environment-variables) docs.
+     >     * Refer to the [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment](https://learn.microsoft.com/en-us/windows/win32/procthread/environment-variables) docs.
 
 If the selected ADC mechanism is [Service Account Key](https://cloud.google.com/docs/authentication/provide-credentials-adc#wlif-key), it's recommended that a [custom role is created](https://cloud.google.com/iam/docs/creating-custom-roles) that has the following minimum permissions:
 
@@ -51,7 +52,7 @@ If the selected ADC mechanism is [Service Account Key](https://cloud.google.com/
 
 Both the Keyfactor Command and AnyCA Gateway DCOM servers must trust the root CA, and if applicable, any subordinate CAs for all features to work as intended. Download the CA Certificate (and chain, if applicable) from GCP [CAS](https://console.cloud.google.com/security/cas), and import them into the appropriate certificate store on the AnyCA Gateway DCOM server.
 
-* **Windows** - The root CA and applicable subordinate CAs must be imported into the Windows certificate store. The certificates can be imported using the Microsoft Management Console (MMC) or PowerShell. 
+* **Windows** - The root CA and applicable subordinate CAs must be imported into the Windows certificate store. The certificates can be imported using the Microsoft Management Console (MMC) or PowerShell.
     * Certificates can be imported in MMC by "File" -> "Add/Remove Snap-in" -> "Certificates" -> "Add >" -> "Computer account" -> "Local computer".
     * Root CAs must go in the `Trusted Root Certification Authorities` certificate store.
     * Subordinate CAs must go in the `Intermediate Certification Authorities` certificate store.
@@ -106,14 +107,14 @@ The GCP CAS AnyCA Gateway DCOM plugin supports [GCP CAS Certificate Templates](h
         </dependentAssembly>
         ```
 
-    > Depending on additional environment-specific factors, additional binding redirects may need to be applied to `CAProxyServer.config`.
+   > Depending on additional environment-specific factors, additional binding redirects may need to be applied to `CAProxyServer.config`.
 
 ## Configuration
-The following sections will breakdown the required configurations for the AnyGatewayConfig.json file that will be imported to configure the Google CA. 
+The following sections will breakdown the required configurations for the AnyGatewayConfig.json file that will be imported to configure the Google CA.
 
 ### Templates
 
-As discussed in the [Template Identification](#template-identification), the GCP CAS AnyCA Gateway DCOM plugin supports [GCP CAS Certificate Templates](https://cloud.google.com/certificate-authority-service/docs/policy-controls). The Keyfactor AnyCA Gateway DCOM maps [AD Certificate Templates](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/certificate-template-concepts) to GCP Certificate Templates via the `ProductID` property in the `Templates` section of configuration files. 
+As discussed in the [Template Identification](#template-identification), the GCP CAS AnyCA Gateway DCOM plugin supports [GCP CAS Certificate Templates](https://cloud.google.com/certificate-authority-service/docs/policy-controls). The Keyfactor AnyCA Gateway DCOM maps [AD Certificate Templates](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/certificate-template-concepts) to GCP Certificate Templates via the `ProductID` property in the `Templates` section of configuration files.
 
 _At least one_ Certificate Template must be defined in this section with the `ProductID` set to `Default`. This Product ID corresponds to no Certificate Template for the [CreateCertificate RPC](https://cloud.google.com/certificate-authority-service/docs/reference/rpc/google.cloud.security.privateca.v1#google.cloud.security.privateca.v1.CertificateAuthorityService.CreateCertificate).
 
