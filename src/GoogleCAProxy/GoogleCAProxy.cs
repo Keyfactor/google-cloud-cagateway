@@ -11,6 +11,7 @@ using CAProxy.AnyGateway.Models;
 using CAProxy.Common;
 using CSS.PKI;
 using Google.Api.Gax;
+using Google.Api.Gax.Grpc;
 using Google.Cloud.Security.PrivateCA.V1;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
@@ -100,13 +101,47 @@ namespace Keyfactor.AnyGateway.Google
                     $"LifetimeKey not found in Product Parameters for Product Id {productInfo.ProductID}. Using default value of 365 days.");
             }
 
-            Log.LogDebug($"Configuring {typeof(Certificate)} for {subject} with {lifetimeInDays} days validity");
+			CertificateConfig certConfig = new CertificateConfig();
+			certConfig.SubjectConfig = new CertificateConfig.Types.SubjectConfig();
+			bool useConfig = false;
+			if (!string.IsNullOrEmpty(subject))
+			{
+				certConfig.SubjectConfig.Subject = new Subject
+				{
+					CommonName = ParseSubject(subject, "CN=", false),
+					Organization = ParseSubject(subject, "O=", false),
+					OrganizationalUnit = ParseSubject(subject, "OU=", false),
+					CountryCode = ParseSubject(subject, "C=", false),
+					Locality = ParseSubject(subject, "L=", false)
+				};
+				useConfig = true;
+			}
+			var dnsSans = new List<string>();
+			if (san != null & san.Count > 0)
+			{
+				var dnsKeys = san.Keys.Where(k => k.IndexOf("dns", StringComparison.OrdinalIgnoreCase) >= 0);
+				foreach (var key in dnsKeys)
+				{
+					dnsSans.AddRange(san[key]);
+				}
+			}
+			if (dnsSans.Count > 0)
+			{
+				certConfig.SubjectConfig.SubjectAltName = new SubjectAltNames
+				{
+					DnsNames = { dnsSans }
+				};
+				useConfig = true;
+			}
+
+			Log.LogDebug($"Configuring {typeof(Certificate)} for {subject} with {lifetimeInDays} days validity");
             Certificate certificate = new Certificate
             {
                 PemCsr =
                     $"-----BEGIN NEW CERTIFICATE REQUEST-----\n{pemify(csr)}\n-----END NEW CERTIFICATE REQUEST-----",
                 Lifetime = Duration.FromTimeSpan(new TimeSpan(lifetimeInDays, 0, 0, 0,
-                    0)) //365 day default or defined by config
+                    0)), //365 day default or defined by config
+				Config = (useConfig) ? certConfig : null
             };
 
             if (productInfo.ProductID == NoTemplateProductId)
@@ -131,8 +166,7 @@ namespace Keyfactor.AnyGateway.Google
                 ParentAsCaPoolName = caPoolAsTypedName,
                 Certificate = certificate,
                 //RequestId="",//if used, this needs to be durable between reties 
-                CertificateId =
-                    $"{now:yyyy}{now:MM}{now:dd}-{now:HH}{now:mm}{now:ss}" //ID is required for Enterprise tier CAs and ignored for other.  
+                CertificateId = Guid.NewGuid().ToString() //ID is required for Enterprise tier CAs and ignored for other.  
             };
 
             if (!string.IsNullOrEmpty(CaId))
@@ -644,19 +678,45 @@ namespace Keyfactor.AnyGateway.Google
         /// <returns></returns>
         private static CertificateAuthorityServiceClient BuildClient()
         {
-            CertificateAuthorityServiceClientBuilder caClient = new CertificateAuthorityServiceClientBuilder
+            string credentialsPath = Environment.GetEnvironmentVariable(AuthEnvVariableName, EnvironmentVariableTarget.Machine);
+
+            // Set the gRPC buffer size to -1 for "no limit"
+            // https://grpc.github.io/grpc/core/group__grpc__arg__keys.html#ga813f94f9ac3174571dd712c96cdbbdc1
+            GrpcChannelOptions grpcChannelOptions = GrpcChannelOptions.Empty.WithMaxReceiveMessageSize(-1);
+
+            CertificateAuthorityServiceClientBuilder caClientBuilder = new CertificateAuthorityServiceClientBuilder
             {
-                CredentialsPath =
-                    Environment.GetEnvironmentVariable(AuthEnvVariableName, EnvironmentVariableTarget.Machine)
+                CredentialsPath = credentialsPath,
+                GrpcChannelOptions = grpcChannelOptions,
             };
-            return caClient.Build();
+
+            return caClientBuilder.Build();        
         }
 
-        #endregion
+		private static string ParseSubject(string subject, string rdn, bool required = true)
+		{
+			string escapedSubject = subject.Replace("\\,", "|");
+			string rdnString = escapedSubject.Split(',').ToList().Where(x => x.Contains(rdn)).FirstOrDefault();
 
-        #region Obsolete Methods
+			if (!string.IsNullOrEmpty(rdnString))
+			{
+				return rdnString.Replace(rdn, "").Replace("|", ",").Trim();
+			}
+			else if (required)
+			{
+				throw new Exception($"The request is missing a {rdn} value");
+			}
+			else
+			{
+				return null;
+			}
+		}
 
-        [Obsolete]
+		#endregion
+
+		#region Obsolete Methods
+
+		[Obsolete]
         public override EnrollmentResult Enroll(string csr, string subject, Dictionary<string, string[]> san,
             EnrollmentProductInfo productInfo, PKIConstants.X509.RequestFormat requestFormat,
             RequestUtilities.EnrollmentType enrollmentType)
